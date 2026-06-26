@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call of War - CCTV Tactical Playback</title>
+    <!-- Google Fonts for futuristic look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background grid & lighting -->
+    <div class="grid-overlay"></div>
+    <div class="glow-effect"></div>
+
+    <div class="dashboard">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo-area">
+                <span class="rec-dot"></span>
+                <span class="system-title">COW-CAM v1.0</span>
+                <span class="divider">|</span>
+                <span class="mode-indicator">REPLAY MODULE</span>
+            </div>
+            <div class="system-status">
+                <div class="status-item"><span class="label">STATUS:</span> <span class="value text-success">BEREIT</span></div>
+                <div class="status-item"><span class="label">SOURCE:</span> <span class="value">SCREENSHOTS/</span></div>
+                <div class="status-item timer" id="real-clock">00:00:00</div>
+            </div>
+        </header>
+
+        <!-- Main Display and Sidebar -->
+        <main class="main-layout">
+            <!-- Screen Viewer -->
+            <section class="viewer-section">
+                <div class="screen-monitor">
+                    <!-- Screen Overlays for Retro/CCTV Vibe -->
+                    <div class="crt-overlay"></div>
+                    <div class="scanlines"></div>
+                    <div class="monitor-vignette"></div>
+                    
+                    <!-- Screen Indicators -->
+                    <div class="monitor-header">
+                        <span class="cam-label">CAM 01 - PRIMARY DISPLAY</span>
+                        <span class="timestamp-overlay" id="timestamp-overlay">NO DATA</span>
+                    </div>
+                    
+                    <div class="monitor-footer">
+                        <span class="frame-counter" id="frame-counter">FRAME 000 / 000</span>
+                        <span class="playback-state" id="playback-state">PAUSIERT</span>
+                    </div>
+
+                    <!-- Image Display -->
+                    <div class="image-container">
+                        <img id="replay-image" src="" alt="Call of War Screenshot Playback" style="display: none;">
+                        
+                        <!-- Empty State -->
+                        <div class="empty-state" id="empty-state">
+                            <div class="terminal-loader">
+                                <div class="terminal-header">
+                                    <span class="terminal-dot red"></span>
+                                    <span class="terminal-dot yellow"></span>
+                                    <span class="terminal-dot green"></span>
+                                </div>
+                                <div class="terminal-body">
+                                    <p class="text-warning">> SYSTEM FEHLER: Keine Screenshots gefunden.</p>
+                                    <p class="text-muted">> Stelle sicher, dass der Recorder gestartet wurde:</p>
+                                    <code>python main.py</code>
+                                    <p class="text-muted" style="margin-top: 15px;">> Sobald Screenshots im Ordner existieren, lade diese Seite neu.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sidebar Info Panel -->
+            <aside class="sidebar-section">
+                <div class="panel">
+                    <div class="panel-header">BEDIENUNGSANLEITUNG</div>
+                    <div class="panel-body font-mono font-sm">
+                        <div class="keyboard-shortcut">
+                            <span class="key">LEERTASTE</span>
+                            <span class="action">Play / Pause</span>
+                        </div>
+                        <div class="keyboard-shortcut">
+                            <span class="key">PFEIL RECHTS</span>
+                            <span class="action">Nächstes Bild</span>
+                        </div>
+                        <div class="keyboard-shortcut">
+                            <span class="key">PFEIL LINKS</span>
+                            <span class="action">Vorheriges Bild</span>
+                        </div>
+                        <div class="keyboard-shortcut">
+                            <span class="key">F</span>
+                            <span class="action">Schneller</span>
+                        </div>
+                        <div class="keyboard-shortcut">
+                            <span class="key">S</span>
+                            <span class="action">Langsamer</span>
+                        </div>
+                        <div class="keyboard-shortcut">
+                            <span class="key">H</span>
+                            <span class="action">Home (Start)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">DATENBANK / CHRONOLOGIE</div>
+                    <div class="panel-body list-container" id="screenshot-list-panel">
+                        <!-- Filled by JS -->
+                        <div class="empty-list-msg">Keine Daten verfügbar</div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Controls Dock -->
+        <footer class="controls-dock">
+            <!-- Timeline Slider -->
+            <div class="timeline-container">
+                <input type="range" id="timeline-slider" min="0" max="0" value="0" disabled>
+                <div class="timeline-ticks" id="timeline-ticks"></div>
+            </div>
+
+            <!-- Buttons and Speed Control -->
+            <div class="controls-row">
+                <div class="btn-group">
+                    <button class="ctrl-btn" id="btn-first" title="Zum Start (H)" disabled>|&lt;</button>
+                    <button class="ctrl-btn" id="btn-prev" title="Vorheriges Bild (<-)" disabled>&lt;&lt;</button>
+                    <button class="ctrl-btn btn-play" id="btn-play-pause" title="Play / Pause (Leertaste)" disabled>PLAY</button>
+                    <button class="ctrl-btn" id="btn-next" title="Nächstes Bild (->)" disabled>&gt;&gt;</button>
+                    <button class="ctrl-btn" id="btn-last" title="Zum Ende" disabled>&gt;|</button>
+                </div>
+
+                <!-- Speed Control -->
+                <div class="speed-control-container">
+                    <span class="control-label">GESCHWINDIGKEIT:</span>
+                    <input type="range" id="speed-slider" min="1" max="10" value="1" step="1">
+                    <span class="speed-value" id="speed-value">1 Bild/Sek (1Hz)</span>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="quick-stats font-mono">
+                    <div>BILDER GESAMT: <span id="stat-total">0</span></div>
+                    <div>ZEITSPANNE: <span id="stat-duration">0m</span></div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Core Script -->
+    <script>
+        // State Variables
+        let screenshots = [];
+        let currentIndex = 0;
+        let isPlaying = false;
+        let playbackIntervalId = null;
+        let playbackSpeedHz = 1; // Frames per second (Video-Sequenz)
+        let preloadedImages = {};
+
+        // DOM Elements
+        const replayImg = document.getElementById("replay-image");
+        const emptyState = document.getElementById("empty-state");
+        const btnPlayPause = document.getElementById("btn-play-pause");
+        const btnPrev = document.getElementById("btn-prev");
+        const btnNext = document.getElementById("btn-next");
+        const btnFirst = document.getElementById("btn-first");
+        const btnLast = document.getElementById("btn-last");
+        const timelineSlider = document.getElementById("timeline-slider");
+        const speedSlider = document.getElementById("speed-slider");
+        const speedValue = document.getElementById("speed-value");
+        const timestampOverlay = document.getElementById("timestamp-overlay");
+        const frameCounter = document.getElementById("frame-counter");
+        const playbackStateText = document.getElementById("playback-state");
+        const statTotal = document.getElementById("stat-total");
+        const statDuration = document.getElementById("stat-duration");
+        const screenshotListPanel = document.getElementById("screenshot-list-panel");
+        const realClock = document.getElementById("real-clock");
+
+        // Clock update
+        setInterval(() => {
+            const now = new Date();
+            realClock.textContent = now.toTimeString().split(' ')[0];
+        }, 1000);
+
+        // API Abfrage
+        async function fetchScreenshots() {
+            try {
+                const response = await fetch('screenshots.json');
+                if (!response.ok) throw new Error("API-Fehler");
+                const data = await response.json();
+                
+                if (data && data.length > 0) {
+                    screenshots = data;
+                    initializeUI();
+                } else {
+                    showEmptyState();
+                }
+            } catch (error) {
+                console.error("Fehler beim Laden der Screenshot-Daten:", error);
+                showEmptyState();
+            }
+        }
+
+        function showEmptyState() {
+            emptyState.style.display = "flex";
+            replayImg.style.display = "none";
+            disableControls();
+        }
+
+        function disableControls() {
+            btnPlayPause.disabled = true;
+            btnPrev.disabled = true;
+            btnNext.disabled = true;
+            btnFirst.disabled = true;
+            btnLast.disabled = true;
+            timelineSlider.disabled = true;
+        }
+
+        function enableControls() {
+            btnPlayPause.disabled = false;
+            btnPrev.disabled = false;
+            btnNext.disabled = false;
+            btnFirst.disabled = false;
+            btnLast.disabled = false;
+            timelineSlider.disabled = false;
+        }
+
+        // Initialisierung
+        function initializeUI() {
+            emptyState.style.display = "none";
+            replayImg.style.display = "block";
+            enableControls();
+
+            // Timeline konfigurieren
+            timelineSlider.max = screenshots.length - 1;
+            timelineSlider.value = 0;
+            
+            statTotal.textContent = screenshots.length;
+            
+            // Berechne grobe Dauer
+            const validTimestamps = screenshots
+                .map((item) => item.timestamp)
+                .filter(Boolean);
+
+            if (validTimestamps.length > 1) {
+                const start = new Date(validTimestamps[0]);
+                const end = new Date(validTimestamps[validTimestamps.length - 1]);
+                const diffMs = Math.abs(end - start);
+                const diffMins = Math.round(diffMs / 60000);
+                if (diffMins < 60) {
+                    statDuration.textContent = `${diffMins} Min.`;
+                } else {
+                    const hrs = Math.floor(diffMins / 60);
+                    const mins = diffMins % 60;
+                    statDuration.textContent = `${hrs} Std. ${mins} Min.`;
+                }
+            } else {
+                statDuration.textContent = "Unbekannt";
+            }
+
+            // Chronologie Liste befüllen
+            buildChronologyList();
+
+            // Ersten Frame anzeigen
+            setFrame(0);
+            
+            // Start preloading
+            preloadSequence(0);
+        }
+
+        function buildChronologyList() {
+            screenshotListPanel.innerHTML = "";
+            screenshots.forEach((item, index) => {
+                const row = document.createElement("div");
+                row.className = `chronology-item ${index === 0 ? 'active' : ''}`;
+                row.id = `item-${index}`;
+                row.dataset.index = index;
+                
+                const timeOnly = item.timestamp ? item.timestamp.split(" ")[1] : "--:--:--";
+                const label = item.label || item.filename;
+            
+                row.innerHTML = `
+                    <span class="item-index font-mono">${label}</span>
+                    <span class="item-time font-mono">${timeOnly}</span>
+                `;
+                
+                row.addEventListener("click", () => {
+                    pause();
+                    setFrame(index);
+                });
+                
+                screenshotListPanel.appendChild(row);
+            });
+        }
+
+        // Image Preloader logic
+        function preloadImage(index) {
+            if (index < 0 || index >= screenshots.length) return;
+            if (preloadedImages[index]) return;
+            
+            const img = new Image();
+            img.src = `screenshots/${screenshots[index].filename}`;
+            preloadedImages[index] = img;
+        }
+
+        function preloadSequence(currentIndex) {
+            // Lade 10 Bilder voraus und 2 Bilder zurück (für weiche Übergänge)
+            for (let i = -2; i <= 15; i++) {
+                preloadImage(currentIndex + i);
+            }
+        }
+
+        // Frame setzen
+        function setFrame(index) {
+            if (index < 0 || index >= screenshots.length) return;
+            
+            // Update active list item
+            const oldActive = screenshotListPanel.querySelector(".chronology-item.active");
+            if (oldActive) oldActive.classList.remove("active");
+            
+            const newActive = document.getElementById(`item-${index}`);
+            if (newActive) {
+                newActive.classList.add("active");
+                // Scroll in view if not fully visible
+                newActive.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+
+            currentIndex = index;
+            timelineSlider.value = index;
+            
+            const item = screenshots[index];
+            replayImg.src = `screenshots/${item.filename}`;
+            
+            // Overlay aktualisieren
+            timestampOverlay.textContent = item.timestamp ? `${item.label} · ${item.timestamp}` : item.label;
+            frameCounter.textContent = `FRAME ${String(index + 1).padStart(3, '0')} / ${String(screenshots.length).padStart(3, '0')}`;
+            
+            // Preload für nächsten Frames anstoßen
+            preloadSequence(index);
+        }
+
+        // Play / Pause Logic
+        function play() {
+            if (isPlaying) return;
+            isPlaying = true;
+            btnPlayPause.textContent = "PAUSE";
+            btnPlayPause.classList.add("playing");
+            playbackStateText.textContent = "ABSPEILEN";
+            playbackStateText.classList.add("pulse");
+            
+            const intervalMs = 1000 / playbackSpeedHz;
+            playbackIntervalId = setInterval(() => {
+                if (currentIndex >= screenshots.length - 1) {
+                    // Loop zurück zum Start
+                    setFrame(0);
+                } else {
+                    setFrame(currentIndex + 1);
+                }
+            }, intervalMs);
+        }
+
+        function pause() {
+            if (!isPlaying) return;
+            isPlaying = false;
+            btnPlayPause.textContent = "PLAY";
+            btnPlayPause.classList.remove("playing");
+            playbackStateText.textContent = "PAUSIERT";
+            playbackStateText.classList.remove("pulse");
+            
+            if (playbackIntervalId) {
+                clearInterval(playbackIntervalId);
+                playbackIntervalId = null;
+            }
+        }
+
+        function togglePlayPause() {
+            if (isPlaying) {
+                pause();
+            } else {
+                play();
+            }
+        }
+
+        // Event Listener für Controls
+        btnPlayPause.addEventListener("click", togglePlayPause);
+        
+        btnPrev.addEventListener("click", () => {
+            pause();
+            if (currentIndex > 0) setFrame(currentIndex - 1);
+        });
+
+        btnNext.addEventListener("click", () => {
+            pause();
+            if (currentIndex < screenshots.length - 1) setFrame(currentIndex + 1);
+        });
+
+        btnFirst.addEventListener("click", () => {
+            pause();
+            setFrame(0);
+        });
+
+        btnLast.addEventListener("click", () => {
+            pause();
+            setFrame(screenshots.length - 1);
+        });
+
+        // Timeline Slider
+        timelineSlider.addEventListener("input", (e) => {
+            pause();
+            setFrame(parseInt(e.target.value));
+        });
+
+        // Speed Slider
+        speedSlider.addEventListener("input", (e) => {
+            playbackSpeedHz = parseInt(e.target.value);
+            speedValue.textContent = `${playbackSpeedHz} Bild${playbackSpeedHz === 1 ? '' : 'er'}/Sek (${playbackSpeedHz}Hz)`;
+            
+            if (isPlaying) {
+                // Interval neu starten mit neuer Geschwindigkeit
+                pause();
+                play();
+            }
+        });
+
+        // Tastatursteuerung
+        document.addEventListener("keydown", (e) => {
+            // Ignoriere Events, falls Benutzer in einem Formular o.Ä. tippt
+            if (e.target.tagName === "INPUT" && e.target.type !== "range") return;
+
+            switch (e.key.toLowerCase()) {
+                case " ":
+                case "spacebar":
+                    e.preventDefault();
+                    togglePlayPause();
+                    break;
+                case "arrowright":
+                    e.preventDefault();
+                    pause();
+                    if (currentIndex < screenshots.length - 1) setFrame(currentIndex + 1);
+                    break;
+                case "arrowleft":
+                    e.preventDefault();
+                    pause();
+                    if (currentIndex > 0) setFrame(currentIndex - 1);
+                    break;
+                case "f":
+                    e.preventDefault();
+                    let newValF = Math.min(parseInt(speedSlider.max), playbackSpeedHz + 1);
+                    speedSlider.value = newValF;
+                    speedSlider.dispatchEvent(new Event('input'));
+                    break;
+                case "s":
+                    e.preventDefault();
+                    let newValS = Math.max(parseInt(speedSlider.min), playbackSpeedHz - 1);
+                    speedSlider.value = newValS;
+                    speedSlider.dispatchEvent(new Event('input'));
+                    break;
+                case "h":
+                case "home":
+                    e.preventDefault();
+                    pause();
+                    setFrame(0);
+                    break;
+            }
+        });
+
+        // Beim Laden der Seite Daten abrufen
+        window.addEventListener("DOMContentLoaded", fetchScreenshots);
+    </script>
+</body>
+</html>
