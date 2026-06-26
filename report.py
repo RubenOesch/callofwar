@@ -32,4 +32,8 @@ if screenshots:
 if log_lines:
     print("\nProtokoll:")
     for line in log_lines[-20:]:
+<<<<<<< HEAD
         print(line)
+=======
+        print(line)
+>>>>>>> origin/main
